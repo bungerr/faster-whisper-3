@@ -144,7 +144,7 @@ class WhisperModel:
             self.hf_tokenizer = tokenizers.Tokenizer.from_file(tokenizer_file)
         else:
             self.hf_tokenizer = tokenizers.Tokenizer.from_pretrained(
-                "openai/whisper-tiny" + ("" if self.model.is_multilingual else ".en")
+                "openai/whisper-tiny"
             )
         # large-v3 uses 128, others use 80
         # if user explicitly sets n_mels, use that
@@ -181,7 +181,7 @@ class WhisperModel:
     @property
     def supported_languages(self) -> List[str]:
         """The languages supported by the model."""
-        return list(_LANGUAGE_CODES) if self.model.is_multilingual else ["en"]
+        return list(_LANGUAGE_CODES)
 
     def transcribe(
         self,
@@ -325,8 +325,9 @@ class WhisperModel:
 
         if language is None:
             if not self.model.is_multilingual:
-                language = "en"
-                language_probability = 1
+                pass
+                # language = "en"
+                # language_probability = 1
             else:
                 segment = features[:, : self.feature_extractor.nb_max_frames]
                 encoder_output = self.encode(segment)
@@ -347,15 +348,15 @@ class WhisperModel:
             if not self.model.is_multilingual and language != "en":
                 self.logger.warning(
                     "The current model is English-only but the language parameter is set to '%s'; "
-                    "using 'en' instead." % language
+                    "using 'en' instead. Ignoring that actually lmao" % language
                 )
-                language = "en"
+                # language = "en"
 
             language_probability = 1
 
         tokenizer = Tokenizer(
             self.hf_tokenizer,
-            self.model.is_multilingual,
+            True,
             task=task,
             language=language,
             num_languages=self.num_languages,
