@@ -142,7 +142,9 @@ class WhisperModel:
                 "openai/whisper-tiny" + ("" if self.model.is_multilingual else ".en")
             )
 
-        self.feature_extractor = FeatureExtractor()
+        isv3 = "v3" in model_size_or_path
+        
+        self.feature_extractor = FeatureExtractor(is_v3=isv3)
         self.num_samples_per_token = self.feature_extractor.hop_length * 2
         self.frames_per_second = (
             self.feature_extractor.sampling_rate // self.feature_extractor.hop_length

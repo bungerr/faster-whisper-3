@@ -5,6 +5,7 @@ import numpy as np
 class FeatureExtractor:
     def __init__(
         self,
+        is_v3=False,
         feature_size=80,
         sampling_rate=16000,
         hop_length=160,
@@ -18,6 +19,10 @@ class FeatureExtractor:
         self.nb_max_frames = self.n_samples // hop_length
         self.time_per_frame = hop_length / sampling_rate
         self.sampling_rate = sampling_rate
+
+        if is_v3:
+            feature_size = 128
+
         self.mel_filters = self.get_mel_filters(
             sampling_rate, n_fft, n_mels=feature_size
         )
