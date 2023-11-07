@@ -89,6 +89,7 @@ class WhisperModel:
         local_files_only: bool = False,
         feature_size: Optional[int] = None,
         num_languages: Optional[int] = None,
+        is_multilingual: bool = True,
     ):
         """Initializes the Whisper model.
 
@@ -139,12 +140,14 @@ class WhisperModel:
             inter_threads=num_workers,
         )
 
+        self.is_multilingual = is_multilingual
+
         tokenizer_file = os.path.join(model_path, "tokenizer.json")
         if os.path.isfile(tokenizer_file):
             self.hf_tokenizer = tokenizers.Tokenizer.from_file(tokenizer_file)
         else:
             self.hf_tokenizer = tokenizers.Tokenizer.from_pretrained(
-                "openai/whisper-tiny" + ("" if self.model.is_multilingual else ".en")
+                "openai/whisper-tiny" + ("" if self.is_multilingual else ".en")
             )
         # large-v3 uses 128, others use 80
         # if user explicitly sets n_mels, use that
@@ -181,7 +184,7 @@ class WhisperModel:
     @property
     def supported_languages(self) -> List[str]:
         """The languages supported by the model."""
-        return list(_LANGUAGE_CODES) if self.model.is_multilingual else ["en"]
+        return list(_LANGUAGE_CODES) if self.is_multilingual else ["en"]
 
     def transcribe(
         self,
@@ -324,7 +327,7 @@ class WhisperModel:
         all_language_probs = None
 
         if language is None:
-            if not self.model.is_multilingual:
+            if not self.is_multilingual:
                 language = "en"
                 language_probability = 1
             else:
@@ -344,7 +347,7 @@ class WhisperModel:
                     language_probability,
                 )
         else:
-            if not self.model.is_multilingual and language != "en":
+            if not self.is_multilingual and language != "en":
                 self.logger.warning(
                     "The current model is English-only but the language parameter is set to '%s'; "
                     "using 'en' instead." % language
@@ -355,7 +358,7 @@ class WhisperModel:
 
         tokenizer = Tokenizer(
             self.hf_tokenizer,
-            self.model.is_multilingual,
+            self.is_multilingual,
             task=task,
             language=language,
             num_languages=self.num_languages,
