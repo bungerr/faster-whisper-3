@@ -89,7 +89,7 @@ class WhisperModel:
         local_files_only: bool = False,
         feature_size: Optional[int] = None,
         num_languages: Optional[int] = None,
-        is_multilingual: bool = False,
+        is_multilingual: bool = True,
     ):
         """Initializes the Whisper model.
 
