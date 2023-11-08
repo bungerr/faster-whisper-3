@@ -51,7 +51,7 @@ def download_model(
     Args:
       size_or_id: Size of the model to download from https://huggingface.co/guillaumekln
         (tiny, tiny.en, base, base.en, small, small.en medium, medium.en, large-v1, large-v2,
-        large, large-v3), or a CTranslate2-converted model ID from the Hugging Face Hub
+        large-v3), or a CTranslate2-converted model ID from the Hugging Face Hub
         (e.g. guillaumekln/faster-whisper-large-v2).
       output_dir: Directory where the model should be saved. If not set, the model is saved in
         the cache directory.
@@ -80,6 +80,7 @@ def download_model(
         "model.bin",
         "tokenizer.json",
         "vocabulary.*",
+        "preprocessor_config.json",
     ]
 
     kwargs = {

@@ -1,4 +1,5 @@
 import itertools
+import json
 import logging
 import os
 import zlib
@@ -87,8 +88,6 @@ class WhisperModel:
         num_workers: int = 1,
         download_root: Optional[str] = None,
         local_files_only: bool = False,
-        feature_size: Optional[int] = None,
-        num_languages: Optional[int] = None,
     ):
         """Initializes the Whisper model.
 
@@ -144,29 +143,28 @@ class WhisperModel:
             self.hf_tokenizer = tokenizers.Tokenizer.from_file(tokenizer_file)
         else:
             self.hf_tokenizer = tokenizers.Tokenizer.from_pretrained(
-                "openai/whisper-tiny"
+                "openai/whisper-tiny" + ("" if self.model.is_multilingual else ".en")
             )
-        # large-v3 uses 128, others use 80
-        # if user explicitly sets n_mels, use that
-        if not feature_size:
-            if "large-v3" in model_size_or_path:
-                feature_size = 128
-            else:
-                feature_size = 80
 
-        # this is hacky - should reference directly from vocab
-        # https://github.com/openai/whisper/commit/c5d42560760a05584c1c79546a098287e5a771eb#diff-ad4e95c840033b439466680ea7a88aa513d47c4acb418364f1d3967ca817d440R277
-        if not num_languages:
-            if "large-v3" in model_size_or_path:
-                num_languages = 100
-            else:
-                num_languages = 99
+        feature_extractor_file = os.path.join(model_path, "preprocessor_config.json")
+        if os.path.isfile(feature_extractor_file):
+            with open(feature_extractor_file, "r") as f:
+                config = json.load(f)
+            feat_kwargs = {
+                k: config[k]
+                for k in [
+                    "n_fft",
+                    "hop_length",
+                    "feature_size",
+                    "sampling_rate",
+                    "chunk_length",
+                ]
+                if k in config
+            }
+        else:
+            feat_kwargs = {}
 
-        self.num_languages = num_languages
-
-        self.feature_extractor = FeatureExtractor(
-            feature_size=feature_size,
-        )
+        self.feature_extractor = FeatureExtractor(**feat_kwargs)
         self.num_samples_per_token = self.feature_extractor.hop_length * 2
         self.frames_per_second = (
             self.feature_extractor.sampling_rate // self.feature_extractor.hop_length
@@ -181,7 +179,7 @@ class WhisperModel:
     @property
     def supported_languages(self) -> List[str]:
         """The languages supported by the model."""
-        return list(_LANGUAGE_CODES)
+        return list(_LANGUAGE_CODES) if self.model.is_multilingual else ["en"]
 
     def transcribe(
         self,
@@ -327,7 +325,7 @@ class WhisperModel:
             if not self.model.is_multilingual:
                 language = "en"
                 language_probability = 1
-            else:  # detect language wont work until is_multilingual is fixed in ctranslate2
+            else:
                 segment = features[:, : self.feature_extractor.nb_max_frames]
                 encoder_output = self.encode(segment)
                 # results is a list of tuple[str, float] with language names and
@@ -337,20 +335,27 @@ class WhisperModel:
                 all_language_probs = [(token[2:-2], prob) for (token, prob) in results]
                 # Get top language token and probability
                 language, language_probability = all_language_probs[0]
+
                 self.logger.info(
                     "Detected language '%s' with probability %.2f",
                     language,
                     language_probability,
                 )
         else:
+            if not self.model.is_multilingual and language != "en":
+                self.logger.warning(
+                    "The current model is English-only but the language parameter is set to '%s'; "
+                    "using 'en' instead." % language
+                )
+                language = "en"
+
             language_probability = 1
 
         tokenizer = Tokenizer(
             self.hf_tokenizer,
-            True,
+            self.model.is_multilingual,
             task=task,
             language=language,
-            num_languages=self.num_languages,
         )
 
         options = TranscriptionOptions(
